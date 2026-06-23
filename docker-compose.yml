@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: clipper
+      POSTGRES_PASSWORD: clipper
+      POSTGRES_DB: clipperai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clipper -d clipperai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://clipper:clipper@postgres:5432/clipperai
+      STORAGE_PATH: /storage/clips
+    volumes:
+      - ./storage:/storage
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: >
+      celery -A backend.workers.tasks.celery_app worker
+      --loglevel=info --concurrency=2 -Q celery
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://clipper:clipper@postgres:5432/clipperai
+      STORAGE_PATH: /storage/clips
+    volumes:
+      - ./storage:/storage
+      - ./backend:/app/backend
+      - whisper_cache:/root/.cache/huggingface
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  whisper_cache:

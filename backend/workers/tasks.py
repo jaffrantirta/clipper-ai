@@ -63,6 +63,7 @@ def process_video(self, job_id: str, youtube_url: str, options: dict | None = No
             job_dir,
             aspect_ratio=options.get("aspect_ratio", "16:9"),
             add_subtitles=options.get("add_subtitles", False),
+            subtitle_style=options.get("subtitle_style", "default"),
             transcript_segments=transcript_segments,
         )
 
@@ -81,6 +82,13 @@ def process_video(self, job_id: str, youtube_url: str, options: dict | None = No
 
                 storage.cleanup(clip_local)
                 storage.cleanup(thumb_local)
+
+                if "subtitle_url" in clip_data:
+                    srt_filename = clip_data["subtitle_url"].rsplit("/", 1)[-1]
+                    srt_local = job_dir / srt_filename
+                    if srt_local.exists():
+                        clip_data["subtitle_url"] = storage.upload(srt_local, f"{job_id}/{srt_filename}")
+                        storage.cleanup(srt_local)
 
             logger.info("Uploaded %d clips for job %s via %s", len(clips), job_id, STORAGE_PROVIDER)
 

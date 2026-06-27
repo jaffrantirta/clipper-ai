@@ -13,6 +13,7 @@ export interface Clip {
   reason: string
   download_url: string
   thumbnail_url: string
+  subtitle_url?: string
 }
 
 interface JobData {
@@ -24,12 +25,19 @@ interface JobData {
 }
 
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:3'
+type SubtitleStyle = 'default' | 'bold' | 'minimal'
 
 const ASPECT_RATIOS: { value: AspectRatio; label: string; hint: string }[] = [
   { value: '16:9', label: '16:9', hint: 'Landscape' },
   { value: '9:16', label: '9:16', hint: 'Portrait' },
   { value: '1:1',  label: '1:1',  hint: 'Square' },
   { value: '4:3',  label: '4:3',  hint: 'Classic' },
+]
+
+const SUBTITLE_STYLES: { value: SubtitleStyle; label: string; hint: string }[] = [
+  { value: 'default', label: 'Default', hint: 'White + outline' },
+  { value: 'bold',    label: 'Bold',    hint: 'Large + thick outline' },
+  { value: 'minimal', label: 'Minimal', hint: 'Small + clean' },
 ]
 
 const TERMINAL_STATES = new Set(['completed', 'failed'])
@@ -46,6 +54,7 @@ export default function Home() {
   const [minDuration, setMinDuration] = useState(5)
   const [maxDuration, setMaxDuration] = useState(60)
   const [addSubtitles, setAddSubtitles] = useState(false)
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>('default')
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
@@ -81,6 +90,7 @@ export default function Home() {
           min_duration: minDuration,
           max_duration: maxDuration,
           add_subtitles: addSubtitles,
+          subtitle_style: subtitleStyle,
         }),
       })
       if (!res.ok) {
@@ -197,25 +207,51 @@ export default function Home() {
             </div>
 
             {/* Subtitles */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-medium text-gray-400 w-28 shrink-0">Burn subtitles</span>
-              <button
-                type="button"
-                disabled={isActive}
-                onClick={() => setAddSubtitles((v) => !v)}
-                className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
-                  addSubtitles ? 'bg-violet-600' : 'bg-gray-700'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                    addSubtitles ? 'translate-x-5' : 'translate-x-0'
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-gray-400 w-28 shrink-0">Burn subtitles</span>
+                <button
+                  type="button"
+                  disabled={isActive}
+                  onClick={() => setAddSubtitles((v) => !v)}
+                  className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-40 ${
+                    addSubtitles ? 'bg-violet-600' : 'bg-gray-700'
                   }`}
-                />
-              </button>
-              <span className="text-xs text-gray-500">
-                {addSubtitles ? 'Subtitles burned into video' : 'No subtitles'}
-              </span>
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                      addSubtitles ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-xs text-gray-500">
+                  {addSubtitles ? 'Burned into video + SRT download available' : 'No subtitles'}
+                </span>
+              </div>
+
+              {addSubtitles && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-medium text-gray-400 w-28 shrink-0">Style</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {SUBTITLE_STYLES.map(({ value, label, hint }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={isActive}
+                        onClick={() => setSubtitleStyle(value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 ${
+                          subtitleStyle === value
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        {label}
+                        <span className="ml-1 text-gray-400 font-normal">{hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </form>

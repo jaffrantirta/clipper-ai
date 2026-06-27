@@ -61,16 +61,31 @@ export function ClipCard({ clip }: { clip: Clip }) {
         <p className="text-sm text-gray-300 leading-relaxed line-clamp-3">{clip.reason}</p>
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-800">
           <span className="text-xs text-gray-500 tabular-nums">{clip.duration.toFixed(1)}s</span>
-          <a
-            href={clip.download_url}
-            download={`clip-${clip.clip_id}.mp4`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-semibold transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download
-          </a>
+          <div className="flex items-center gap-2">
+            {clip.subtitle_url && (
+              <a
+                href={clip.subtitle_url}
+                download={`clip-${clip.clip_id}.srt`}
+                title="Download subtitles (SRT)"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                </svg>
+                SRT
+              </a>
+            )}
+            <a
+              href={clip.download_url}
+              download={`clip-${clip.clip_id}.mp4`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-semibold transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+            </a>
+          </div>
         </div>
       </div>
     </div>

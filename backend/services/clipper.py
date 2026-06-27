@@ -12,12 +12,27 @@ _AR_CROP = {
     "4:3":  "crop=trunc(ih*4/3/2)*2:ih",
 }
 
-_SUBTITLE_STYLE = (
-    "FontSize=20,Alignment=2,"
-    "PrimaryColour=&H00FFFFFF&,"  # white
-    "OutlineColour=&H00000000&,"  # black outline
-    "Outline=2,Bold=1,MarginV=25"
-)
+# ASS colour format: &HAABBGGRR&  (AA=alpha 00=opaque, BGR not RGB)
+_SUBTITLE_STYLES: dict[str, str] = {
+    "default": (
+        "FontSize=20,Alignment=2,"
+        "PrimaryColour=&H00FFFFFF&,"
+        "OutlineColour=&H00000000&,"
+        "Outline=2,Bold=1,MarginV=25"
+    ),
+    "bold": (
+        "FontSize=26,Alignment=2,"
+        "PrimaryColour=&H00FFFFFF&,"
+        "OutlineColour=&H00000000&,"
+        "Outline=3,Bold=1,MarginV=20"
+    ),
+    "minimal": (
+        "FontSize=15,Alignment=2,"
+        "PrimaryColour=&H00FFFFFF&,"
+        "OutlineColour=&H00000000&,"
+        "Outline=1,Bold=0,MarginV=15"
+    ),
+}
 
 
 def get_video_duration(video_path: Path) -> float:
@@ -76,6 +91,7 @@ def cut_clips(
     output_dir: Path,
     aspect_ratio: str = "16:9",
     add_subtitles: bool = False,
+    subtitle_style: str = "default",
     transcript_segments: list[dict] | None = None,
 ) -> list[dict]:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -101,12 +117,14 @@ def cut_clips(
         if crop_filter:
             vf_parts.append(crop_filter)
 
+        srt_kept = False
         if add_subtitles and transcript_segments:
             has_subs = _write_srt(srt_path, transcript_segments, seg["start"], seg["end"])
             if has_subs:
-                # Escape colons in path for FFmpeg filter syntax (Linux paths are safe)
+                style = _SUBTITLE_STYLES.get(subtitle_style, _SUBTITLE_STYLES["default"])
                 safe_path = str(srt_path).replace("'", "\\'")
-                vf_parts.append(f"subtitles='{safe_path}':force_style='{_SUBTITLE_STYLE}'")
+                vf_parts.append(f"subtitles='{safe_path}':force_style='{style}'")
+                srt_kept = True
 
         ffmpeg_cmd = [
             "ffmpeg", "-y",
@@ -145,23 +163,23 @@ def cut_clips(
             )
         except subprocess.CalledProcessError as exc:
             logger.error("FFmpeg failed for clip %s: %s", clip_id, exc.stderr)
-            continue
-        finally:
             if srt_path.exists():
                 srt_path.unlink(missing_ok=True)
+            continue
 
-        clips.append(
-            {
-                "clip_id": clip_id,
-                "start": round(seg["start"], 2),
-                "end": round(seg["end"], 2),
-                "duration": duration,
-                "score": seg["final_score"],
-                "reason": seg["reason"],
-                "download_url": f"/clips/{job_id}/{clip_file}",
-                "thumbnail_url": f"/clips/{job_id}/{thumb_file}",
-            }
-        )
+        clip_data: dict = {
+            "clip_id": clip_id,
+            "start": round(seg["start"], 2),
+            "end": round(seg["end"], 2),
+            "duration": duration,
+            "score": seg["final_score"],
+            "reason": seg["reason"],
+            "download_url": f"/clips/{job_id}/{clip_file}",
+            "thumbnail_url": f"/clips/{job_id}/{thumb_file}",
+        }
+        if srt_kept:
+            clip_data["subtitle_url"] = f"/clips/{job_id}/{clip_id}.srt"
+        clips.append(clip_data)
 
     logger.info("Cut %d clips for job %s", len(clips), job_id)
     return clips

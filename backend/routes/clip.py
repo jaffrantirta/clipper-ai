@@ -11,10 +11,11 @@ router = APIRouter()
 
 class ClipRequest(BaseModel):
     youtube_url: str
-    aspect_ratio: str = "16:9"   # "16:9" | "9:16" | "1:1" | "4:3"
-    min_duration: float = 5.0    # seconds
-    max_duration: float = 60.0   # seconds
+    aspect_ratio: str = "16:9"      # "16:9" | "9:16" | "1:1" | "4:3"
+    min_duration: float = 5.0       # seconds
+    max_duration: float = 60.0      # seconds
     add_subtitles: bool = False
+    subtitle_style: str = "default"  # "default" | "bold" | "minimal"
 
 
 @router.post("/clip")
@@ -27,6 +28,7 @@ def submit_clip(req: ClipRequest):
         "min_duration": req.min_duration,
         "max_duration": req.max_duration,
         "add_subtitles": req.add_subtitles,
+        "subtitle_style": req.subtitle_style,
     }
     process_video.delay(job_id, req.youtube_url, options)
     return {"job_id": job_id, "status": "queued"}

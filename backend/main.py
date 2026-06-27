@@ -16,10 +16,12 @@ app.add_middleware(
 )
 
 
+STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+
+
 @app.on_event("startup")
 def on_startup():
     init_db()
-    STORAGE_PATH.mkdir(parents=True, exist_ok=True)
 
 
 app.include_router(clip.router, prefix="/api")

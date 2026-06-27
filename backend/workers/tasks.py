@@ -2,7 +2,7 @@ import logging
 
 from celery import Celery
 
-from backend.config import REDIS_URL, STORAGE_PATH
+from backend.config import REDIS_URL, STORAGE_PATH, STORAGE_PROVIDER
 from backend.models.job import update_job
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def process_video(self, job_id: str, youtube_url: str, options: dict | None = No
     from backend.services.clipper import cut_clips, get_video_duration
     from backend.services.downloader import download_video
     from backend.services.fusion import fuse_and_filter
+    from backend.services.storage import get_storage
     from backend.services.text_scorer import score_segments
     from backend.services.transcriber import transcribe_audio
 
@@ -64,6 +65,24 @@ def process_video(self, job_id: str, youtube_url: str, options: dict | None = No
             add_subtitles=options.get("add_subtitles", False),
             transcript_segments=transcript_segments,
         )
+
+        # ── Stage 6: Upload to storage (no-op for local) ──────────────────
+        if STORAGE_PROVIDER != "local":
+            update_job(job_id, status="uploading", progress=95)
+            storage = get_storage()
+            for clip_data in clips:
+                clip_filename = clip_data["download_url"].rsplit("/", 1)[-1]
+                thumb_filename = clip_data["thumbnail_url"].rsplit("/", 1)[-1]
+                clip_local = job_dir / clip_filename
+                thumb_local = job_dir / thumb_filename
+
+                clip_data["download_url"] = storage.upload(clip_local, f"{job_id}/{clip_filename}")
+                clip_data["thumbnail_url"] = storage.upload(thumb_local, f"{job_id}/{thumb_filename}")
+
+                storage.cleanup(clip_local)
+                storage.cleanup(thumb_local)
+
+            logger.info("Uploaded %d clips for job %s via %s", len(clips), job_id, STORAGE_PROVIDER)
 
         # ── Done ──────────────────────────────────────────────────────────
         update_job(job_id, status="completed", progress=100, clips=clips)

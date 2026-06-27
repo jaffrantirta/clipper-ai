@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import STORAGE_PATH
+from backend.config import STORAGE_PATH, STORAGE_PROVIDER
 from backend.models.job import init_db
 from backend.routes import clip, status
 
@@ -25,7 +25,8 @@ def on_startup():
 app.include_router(clip.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 
-app.mount("/clips", StaticFiles(directory=str(STORAGE_PATH)), name="clips")
+if STORAGE_PROVIDER == "local":
+    app.mount("/clips", StaticFiles(directory=str(STORAGE_PATH)), name="clips")
 
 
 @app.get("/health")
